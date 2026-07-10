@@ -1,4 +1,4 @@
-import type { User } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 export type AccessLevel = "superadmin";
 
@@ -9,20 +9,25 @@ export type AuthProfile = {
   access: AccessLevel | null;
 };
 
-function isSuperAdminClaim(value: unknown): boolean {
-  return value === "superadmin" || value === "super_admin";
+// Roles as stored in crm.users.role. Normalized so casing/whitespace can't
+// silently deny access, and both spellings map to the same level so a legacy
+// "super_admin" row still grants access.
+export function accessLevelFromRole(role: string | null | undefined): AccessLevel | null {
+  const normalized = role?.trim().toLowerCase();
+  return normalized === "superadmin" || normalized === "super_admin" ? "superadmin" : null;
 }
 
-export function hasSuperAdminAccess(user: User): boolean {
-  const metadata = user.app_metadata ?? {};
-  const roleClaims = Array.isArray(metadata.roles) ? metadata.roles : [];
-  return isSuperAdminClaim(metadata.access)
-    || isSuperAdminClaim(metadata.role)
-    || isSuperAdminClaim(metadata.lease_role)
-    || roleClaims.some(isSuperAdminClaim);
+// The source of truth for access is crm.users.role. crm.current_lease_role()
+// (SECURITY DEFINER) returns the calling user's own role for that column; see
+// supabase/migrations/202607100001_lease_role_rpc.sql. Works with any Supabase
+// client bound to the user's session — browser or the server-side proxy.
+export async function fetchAccessLevel(supabase: SupabaseClient): Promise<AccessLevel | null> {
+  const { data, error } = await supabase.schema("crm").rpc("current_lease_role");
+  if (error) return null;
+  return accessLevelFromRole(typeof data === "string" ? data : null);
 }
 
-export function toAuthProfile(user: User): AuthProfile {
+export function toAuthProfile(user: User, access: AccessLevel | null): AuthProfile {
   const metadata = user.user_metadata ?? {};
   const displayName = typeof metadata.full_name === "string"
     ? metadata.full_name
@@ -34,6 +39,6 @@ export function toAuthProfile(user: User): AuthProfile {
     id: user.id,
     email: user.email ?? "",
     displayName,
-    access: hasSuperAdminAccess(user) ? "superadmin" : null,
+    access,
   };
 }

@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { authRequired } from "@/lib/auth-mode";
-import { hasSuperAdminAccess } from "@/lib/auth";
+import { fetchAccessLevel } from "@/lib/auth";
 
 const apiOrigin = process.env.API_ORIGIN ?? "http://localhost:8000";
 // Shared secret proving this request came from the trusted server-side proxy.
@@ -17,6 +17,9 @@ async function handler(request: NextRequest, context: RouteContext) {
   const headers = new Headers(request.headers);
   headers.delete("host");
   headers.delete("content-length");
+  // Set the admin secret only from trusted server env — never forward a value a
+  // client tried to supply (matters locally, where apiProxySecret is unset).
+  headers.delete("x-lease-admin-secret");
   if (apiProxySecret) headers.set("X-Lease-Admin-Secret", apiProxySecret);
 
   const cookiesToSet: Array<{ name: string; value: string; options: Record<string, unknown> }> = [];
@@ -36,7 +39,10 @@ async function handler(request: NextRequest, context: RouteContext) {
     if (userError || !userData.user || !sessionData.session) {
       return NextResponse.json({ detail: "Authentication required." }, { status: 401 });
     }
-    if (!hasSuperAdminAccess(userData.user)) return NextResponse.json({ detail: "Superadmin access required." }, { status: 403 });
+    // Role comes from crm.users.role via the RPC, run as this authenticated user.
+    if ((await fetchAccessLevel(supabase)) !== "superadmin") {
+      return NextResponse.json({ detail: "Superadmin access required." }, { status: 403 });
+    }
     headers.set("Authorization", `Bearer ${sessionData.session.access_token}`);
   }
 

@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { authRequired } from "@/lib/auth-mode";
-import { hasSuperAdminAccess } from "@/lib/auth";
+import { fetchAccessLevel } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,10 +25,11 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      const { data, error: signInError } = await createClient().auth.signInWithPassword({ email, password });
+      const supabase = createClient();
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
-      if (!data.user || !hasSuperAdminAccess(data.user)) {
-        await createClient().auth.signOut();
+      if (!data.session || (await fetchAccessLevel(supabase)) !== "superadmin") {
+        await supabase.auth.signOut();
         throw new Error("Your account does not have superadmin access.");
       }
       router.replace("/");
