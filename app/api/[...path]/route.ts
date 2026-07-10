@@ -4,6 +4,10 @@ import { authRequired } from "@/lib/auth-mode";
 import { hasSuperAdminAccess } from "@/lib/auth";
 
 const apiOrigin = process.env.API_ORIGIN ?? "http://localhost:8000";
+// Shared secret proving this request came from the trusted server-side proxy.
+// The droplet's nginx requires it on /leasing-admin/, so the admin API is not
+// publicly usable. Unset locally (the dev backend is hit directly, no gate).
+const apiProxySecret = process.env.API_PROXY_SECRET;
 
 type RouteContext = { params: Promise<{ path: string[] }> };
 
@@ -13,6 +17,7 @@ async function handler(request: NextRequest, context: RouteContext) {
   const headers = new Headers(request.headers);
   headers.delete("host");
   headers.delete("content-length");
+  if (apiProxySecret) headers.set("X-Lease-Admin-Secret", apiProxySecret);
 
   const cookiesToSet: Array<{ name: string; value: string; options: Record<string, unknown> }> = [];
   if (authRequired) {

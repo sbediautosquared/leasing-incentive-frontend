@@ -2,7 +2,7 @@
 
 import { ChangeEvent, DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
-import { SignOutButton } from "@/components/sign-out-button";
+import { HeaderAccount } from "@/components/header-account";
 import { apiFetch } from "@/lib/api";
 
 type Status = "ready" | "needs_parser" | "queued" | "parsing" | "completed" | "failed";
@@ -219,7 +219,16 @@ export default function Home() {
   return (
     <main className="app-frame">
       <a className="skip-link" href="#workspace">Skip to workspace</a>
-      <header className="app-header"><button className="wordmark" type="button" onClick={() => selected ? setView("review") : beginImport()} aria-label="Lease Ledger home">Lease Ledger</button><div className="header-context">Residual file workspace</div><div className="header-account">{profile?.displayName}<SignOutButton /></div></header>
+      <header className="app-header">
+        <button className="wordmark" type="button" onClick={() => selected ? setView("review") : beginImport()} aria-label="Lease Ledger home">
+          <span className="wordmark-mark" aria-hidden="true">
+            <svg viewBox="0 0 20 20" width="20" height="20" fill="currentColor"><rect x="4.5" y="5.5" width="11" height="1.75" /><rect x="4.5" y="9.125" width="11" height="1.75" /><rect x="4.5" y="12.75" width="6.5" height="1.75" /></svg>
+          </span>
+          <span className="wordmark-text">Lease Ledger</span>
+        </button>
+        <p className="header-context">Residual file workspace</p>
+        <HeaderAccount />
+      </header>
       <div className="app-shell">
         <aside className="imports-rail" aria-label="Import history">
           <div className="rail-heading"><div><h2>Imports</h2><p>{imports.length} saved file{imports.length === 1 ? "" : "s"}</p></div>{superadminAccess && <button className="new-import" type="button" onClick={beginImport}><span aria-hidden="true">+</span>New import</button>}</div>
@@ -227,7 +236,7 @@ export default function Home() {
             {importsLoading ? <RailLoading /> : importsError ? <RailError message={importsError} onRetry={refreshImports} /> : imports.length === 0 ? <p className="rail-empty">Your imported PDFs will appear here. Start with a monthly residual file.</p> : imports.map((item) => <button key={item.id} className={`rail-item ${selected?.id === item.id && !isImportView ? "is-selected" : ""}`} type="button" onClick={() => selectImport(item)}><span className={`status-mark status-${item.status}`} aria-hidden="true" /><span className="rail-item-copy"><strong>{item.filename}</strong><small>{item.detection.brand ?? "Brand pending"} · {formatDate(item.created_at)}</small></span><span className={`rail-item-status status-${item.status}`}>{item.result ? `${item.result.rows_clean.toLocaleString()} rows` : STATUS_COPY[item.status]}</span></button>)}
           </div>
         </aside>
-        <section className="workspace" id="workspace" aria-live="polite">
+        <section className="workspace" id="workspace">
           {isImportView ? superadminAccess ? <ImportStage file={file} dragging={dragging} parser={parser} extractor={extractor} busy={busy} message={message} fileInput={fileInput} onSubmit={submit} onChooseFile={handleFileInput} onDrop={handleDrop} onDragChange={setDragging} onParserChange={setParser} onExtractorChange={setExtractor} /> : <ReadOnlyEmptyState /> : selected && <ReviewStage selected={selected} rows={rows} query={query} makeFilter={makeFilter} sort={sort} page={page} pageSize={pageSize} sourceOpen={sourceOpen} message={message} rowsLoading={rowsLoading} rowsError={rowsError} retrying={retrying} onQueryChange={updateQuery} onMakeChange={updateMake} onSortChange={updateSort} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} onRowsRetry={refreshRows} onImportRetry={retryImport} onSourceToggle={() => setSourceOpen((open) => !open)} onSourceClose={() => setSourceOpen(false)} />}
         </section>
       </div>
