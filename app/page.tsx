@@ -49,8 +49,18 @@ const ROW_COLUMNS: Array<{ key: RowSort; label: string; numeric?: boolean }> = [
   { key: "residual_percent", label: "Residual", numeric: true },
 ];
 
+const RUN_TITLE: Record<Status, string> = {
+  ready: "Ready to parse",
+  needs_parser: "Needs a supported parser",
+  queued: "Queued for parsing",
+  parsing: "Parsing in progress",
+  completed: "Parsing complete",
+  failed: "Import didn’t complete",
+};
+
 const formatBytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(bytes > 10 * 1024 * 1024 ? 0 : 1)} MB`;
 const formatDate = (value: string) => new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+const formatTime = (value: string) => new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit", second: "2-digit" }).format(new Date(value));
 const getString = (value: unknown) => String(value ?? "—");
 
 export default function Home() {
@@ -265,4 +275,51 @@ function ReviewStage({ selected, rows, query, makeFilter, sort, page, pageSize, 
 }
 
 function TableSkeleton() { return <>{Array.from({ length: 6 }, (_, index) => <tr key={index} className="table-skeleton"><td colSpan={6}><span /></td></tr>)}</>; }
-function RunState({ selected, retrying, onRetry }: { selected: ImportRecord; retrying: boolean; onRetry: () => Promise<void> }) { const canRetry = selected.status === "failed" || selected.status === "needs_parser"; const latestEvent = selected.events?.at(-1); return <div className="run-state"><span className={`status-mark status-${selected.status}`} aria-hidden="true" /><div><strong>{selected.status === "needs_parser" ? "This file needs a supported parser." : selected.status === "failed" ? "The import did not complete." : "Parsing is in progress."}</strong><p>{selected.error ?? latestEvent?.message ?? "The review table and exports will appear here as soon as the run completes."}</p>{canRetry && <button type="button" className="secondary-action" disabled={retrying} onClick={() => void onRetry()}>{retrying ? "Queueing retry…" : "Retry import"}</button>}</div></div>; }
+function RunState({ selected, retrying, onRetry }: { selected: ImportRecord; retrying: boolean; onRetry: () => Promise<void> }) {
+  const active = selected.status === "queued" || selected.status === "parsing";
+  const canRetry = selected.status === "failed" || selected.status === "needs_parser";
+  const events = selected.events ?? [];
+  const latest = events.at(-1)?.message;
+  const summary =
+    selected.error ??
+    (active
+      ? selected.status === "queued"
+        ? "Your file is queued. Parsing begins automatically."
+        : "Reading the PDF and standardizing rows. This can take a moment."
+      : selected.status === "needs_parser"
+        ? "The file is stored, but its brand isn’t routed to a supported parser yet."
+        : latest ?? "The run stopped before it finished. Retry it to pick up where it left off.");
+  return (
+    <section className={`run-panel run-panel-${selected.status}`} aria-busy={active}>
+      <span className={`run-progress ${active ? "is-active" : ""}`} aria-hidden="true" />
+      <div className="run-panel-body">
+        <header className="run-lead" aria-live="polite">
+          <span className={`run-beacon status-${selected.status} ${active ? "is-live" : ""}`} aria-hidden="true" />
+          <div className="run-lead-copy">
+            <strong key={selected.status} className="run-title">{RUN_TITLE[selected.status]}</strong>
+            <p className="run-summary">{summary}</p>
+          </div>
+        </header>
+        {events.length > 0 && (
+          <ol className="run-timeline">
+            {events.map((event, index) => {
+              const isLast = index === events.length - 1;
+              const state = active && isLast ? "is-active" : canRetry && isLast ? "is-error" : "is-done";
+              return (
+                <li key={`${event.at}-${index}`} className={`run-step ${state}`}>
+                  <span className="run-step-message">{event.message}</span>
+                  <time className="run-step-time" dateTime={event.at}>{formatTime(event.at)}</time>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+        {canRetry && (
+          <button type="button" className="secondary-action" disabled={retrying} onClick={() => void onRetry()}>
+            {retrying ? "Queueing retry…" : "Retry import"}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}

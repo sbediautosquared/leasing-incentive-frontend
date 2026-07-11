@@ -37,12 +37,12 @@ uv sync --extra api
 
 Create `web/.env.local` (gitignored) when you need to override defaults:
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `API_ORIGIN` | `http://localhost:8000` | Upstream FastAPI base URL for the Next.js `/api` proxy |
-| `NEXT_PUBLIC_AUTH_MODE` | *(unset → disabled)* | Set to `supabase` to require sign-in |
-| `NEXT_PUBLIC_SUPABASE_URL` | — | Supabase project URL (required when auth is on) |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | — | Supabase anon key (required when auth is on) |
+| Variable                        | Default                 | Purpose                                                |
+| ------------------------------- | ----------------------- | ------------------------------------------------------ |
+| `API_ORIGIN`                    | `http://localhost:8000` | Upstream FastAPI base URL for the Next.js `/api` proxy |
+| `NEXT_PUBLIC_AUTH_MODE`         | _(unset → disabled)_    | Set to `supabase` to require sign-in                   |
+| `NEXT_PUBLIC_SUPABASE_URL`      | —                       | Supabase project URL (required when auth is on)        |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | —                       | Supabase anon key (required when auth is on)           |
 
 `NEXT_PUBLIC_*` values are inlined into the client bundle at **build** time.
 
@@ -66,12 +66,12 @@ NEXT_PUBLIC_AUTH_MODE=supabase
 
 ## Scripts
 
-| Command | Description |
-| --- | --- |
-| `pnpm dev` | Start the Next.js dev server (port 3000) |
-| `pnpm build` | Production build |
-| `pnpm start` | Serve the production build |
-| `pnpm lint` | Run ESLint |
+| Command      | Description                              |
+| ------------ | ---------------------------------------- |
+| `pnpm dev`   | Start the Next.js dev server (port 3000) |
+| `pnpm build` | Production build                         |
+| `pnpm start` | Serve the production build               |
+| `pnpm lint`  | Run ESLint                               |
 
 ## Project layout
 
